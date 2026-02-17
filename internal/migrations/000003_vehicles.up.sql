@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS vehicles (
+    id SERIAL PRIMARY KEY,
+    vehicle_number VARCHAR(50) UNIQUE NOT NULL,
+    type VARCHAR(100),
+    capacity NUMERIC(10,2),  
+    driver_name VARCHAR(255),
+    site_id INTEGER REFERENCES sites(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

@@ -4,23 +4,51 @@ import (
 	"log"
 	"net/http"
 
+	domain "volumetric-backend/internal/handler"         //  alias "domain" for your original ScanHandler etc.
+	authh "volumetric-backend/internal/auth/handler"     //  alias "authh" for AuthHandler
+	authr "volumetric-backend/internal/auth/repo"        //  alias for repo 
+
 	"volumetric-backend/internal/config"
 	"volumetric-backend/internal/db"
-	"volumetric-backend/internal/handler"
 	"volumetric-backend/internal/router"
 )
 
 func main() {
-	cfg := config.Load()
+	cfg := config.Load()        //It reads env file, or environment variables, or config files
+	dbConn := db.Connect(cfg)   //gateway to run db queries
 
-	dbConn := db.Connect(cfg)
-
-	h := &handler.CoordinateHandler{
-		DB: dbConn,
+	//  DB check
+	if err := dbConn.Ping(); err != nil {
+		log.Fatalf("Database ping failed: %v", err)
 	}
+	log.Println("Database connection OK")
 
-	r := router.Setup(h)
+	// Repositories(Repo is layer that directly talks to db)
+	authRepo := authr.NewAuthRepo(dbConn)
+
+	// Handlers(function that handles incoming HTTP requests) — used aliases to avoid conflict
+	scanHandler := &domain.ScanHandler{DB: dbConn}
+	authHandler := authh.NewAuthHandler(authRepo)
+
+	// Router decides which URL path maps to which handler
+	r := router.Setup(scanHandler, authHandler,authRepo,)
 
 	log.Printf("Server running on :%s\n", cfg.ServerPort)
 	log.Fatal(http.ListenAndServe(":"+cfg.ServerPort, r))
 }
+
+
+
+// (1) It starts a web server that:
+
+// Load config
+
+// Connect to database
+
+// Create repo (DB layer)
+
+// Create handlers (business logic layer)
+
+// Setup routes (URL mapping)
+
+// Start server

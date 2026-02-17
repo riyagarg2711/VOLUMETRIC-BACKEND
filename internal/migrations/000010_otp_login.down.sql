@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS otp_login CASCADE;
+DROP TYPE IF EXISTS otp_category CASCADE;
+DROP TYPE IF EXISTS auth_method_type CASCADE;
+DROP TYPE IF EXISTS auth_device_type CASCADE;

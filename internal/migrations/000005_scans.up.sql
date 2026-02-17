@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS scans (
+    id SERIAL PRIMARY KEY,
+    scan_uuid UUID UNIQUE DEFAULT gen_random_uuid(),  
+    station_id INTEGER REFERENCES sites(id) ON DELETE SET NULL,  
+    vehicle_id INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE RESTRICT,
+    operator_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    is_filled BOOLEAN NOT NULL DEFAULT FALSE,
+    material_id INTEGER REFERENCES material_types(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
