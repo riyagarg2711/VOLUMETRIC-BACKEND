@@ -18,10 +18,16 @@ type contextKey string
 
 const ClaimsKey contextKey = "claims"
 
+
 // AuthMiddleware validates JWT and checks session validity
 func AuthMiddleware(repo *repo.AuthRepo) func(http.Handler) http.Handler {
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// log.Printf("RAW HEADERS: %+v", r.Header)
+			// log.Printf("AuthMiddleware called for path: %s", r.URL.Path)
+			// log.Printf("Authorization header received: %q", r.Header.Get("Authorization"))
+			// log.Printf("X-Device-ID header: %q", r.Header.Get("X-Device-ID"))
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
 				render.Status(r, http.StatusUnauthorized)

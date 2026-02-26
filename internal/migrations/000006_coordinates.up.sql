@@ -10,3 +10,5 @@ CREATE TABLE IF NOT EXISTS coordinates (
 -- Indexes for coordinates (critical for performance with lakhs of rows)
 CREATE INDEX IF NOT EXISTS idx_coordinates_scan_id ON coordinates(scan_id);
 CREATE INDEX IF NOT EXISTS idx_coordinates_created_at ON coordinates(created_at);
+
+

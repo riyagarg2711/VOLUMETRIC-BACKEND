@@ -3,18 +3,19 @@ package router
 import (
 	"volumetric-backend/internal/auth/handler"
 
-"volumetric-backend/internal/auth/repo"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"                  // Chi's middlewares
+	"github.com/go-chi/chi/v5/middleware" // Chi's middlewares
 	"github.com/go-chi/render"
-	domain "volumetric-backend/internal/handler"
 	authmw "volumetric-backend/internal/auth/middleware"
+	"volumetric-backend/internal/auth/repo"
+	domain "volumetric-backend/internal/handler"
 )
 
 func Setup(
-	scanHandler *domain.ScanHandler,    
-	authHandler *handler.AuthHandler, 
+	scanHandler *domain.ScanHandler,
+	authHandler *handler.AuthHandler,
 	authRepo *repo.AuthRepo,
+	coordHandler *domain.CoordinateHandler,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
@@ -27,19 +28,19 @@ func Setup(
 	r.Group(func(r chi.Router) {
 		r.Post("/auth/otp/send", authHandler.SendOTP)
 		r.Post("/auth/otp/verify", authHandler.VerifyOTP)
-		 r.Post("/auth/refresh", authHandler.RefreshToken)
-		 
+		r.Post("/auth/refresh", authHandler.RefreshToken)
+
 	})
 
 	// ── Protected routes ──
 	r.Group(func(r chi.Router) {
-		r.Use(authmw.AuthMiddleware(authRepo)) 
+		r.Use(authmw.AuthMiddleware(authRepo))
 
 		// Protected endpoints
 		r.Post("/scans", scanHandler.CreateScan)
 		r.Post("/auth/logout", authHandler.Logout)
-		// r.Get("/scans/{id}", scanHandler.GetScan)
-		// r.Post("/scans/{id}/coordinates", coordHandler.Create)
+		r.Post("/scans/{id}/coordinates", coordHandler.UploadCoordinates)
+		r.Get("/scans/{id}/coordinates", coordHandler.GetCoordinates)
 	})
 
 	return r

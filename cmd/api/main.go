@@ -4,9 +4,11 @@ import (
 	"log"
 	"net/http"
 
-	domain "volumetric-backend/internal/handler"         //  alias "domain" for your original ScanHandler etc.
-	authh "volumetric-backend/internal/auth/handler"     //  alias "authh" for AuthHandler
-	authr "volumetric-backend/internal/auth/repo"        //  alias for repo 
+	authh "volumetric-backend/internal/auth/handler" //  alias "authh" for AuthHandler
+	authr "volumetric-backend/internal/auth/repo"    //  alias for repo
+	"volumetric-backend/internal/handler"
+	// domain "volumetric-backend/internal/handler" //  alias "domain" for your original ScanHandler etc.
+	"volumetric-backend/internal/repo"
 
 	"volumetric-backend/internal/config"
 	"volumetric-backend/internal/db"
@@ -14,8 +16,8 @@ import (
 )
 
 func main() {
-	cfg := config.Load()        //It reads env file, or environment variables, or config files
-	dbConn := db.Connect(cfg)   //gateway to run db queries
+	cfg := config.Load()      //It reads env file, or environment variables, or config files
+	dbConn := db.Connect(cfg) //gateway to run db queries
 
 	//  DB check
 	if err := dbConn.Ping(); err != nil {
@@ -25,19 +27,21 @@ func main() {
 
 	// Repositories(Repo is layer that directly talks to db)
 	authRepo := authr.NewAuthRepo(dbConn)
+	scanRepo := repo.NewScanRepo(dbConn)
+	coordRepo := repo.NewCoordinateRepo(dbConn)
 
 	// Handlers(function that handles incoming HTTP requests) — used aliases to avoid conflict
-	scanHandler := &domain.ScanHandler{DB: dbConn}
+	// scanHandler := &domain.ScanHandler{DB: dbConn}
 	authHandler := authh.NewAuthHandler(authRepo)
+	scanHandler := handler.NewScanHandler(scanRepo)
+	coordHandler := handler.NewCoordinateHandler(coordRepo, scanRepo)
 
 	// Router decides which URL path maps to which handler
-	r := router.Setup(scanHandler, authHandler,authRepo,)
+	r := router.Setup(scanHandler, authHandler, authRepo, coordHandler)
 
 	log.Printf("Server running on :%s\n", cfg.ServerPort)
 	log.Fatal(http.ListenAndServe(":"+cfg.ServerPort, r))
 }
-
-
 
 // (1) It starts a web server that:
 

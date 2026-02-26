@@ -1,32 +1,30 @@
 package handler
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"volumetric-backend/internal/auth/middleware"
+	"volumetric-backend/internal/model"
+
+	"volumetric-backend/internal/repo"
 
 	"github.com/go-chi/render"
 	"github.com/google/uuid"
 )
 
 type ScanHandler struct {
-	DB *sql.DB
+	Repo *repo.ScanRepo  
 }
 
-type CreateScanRequest struct {
-	StationID  *int `json:"station_id,omitempty"`
-	VehicleID  int  `json:"vehicle_id"`
-	OperatorID *int `json:"operator_id,omitempty"`
-	IsFilled   bool `json:"is_filled"`
-	MaterialID *int `json:"material_id,omitempty"`
+func NewScanHandler(repo *repo.ScanRepo) *ScanHandler {
+	return &ScanHandler{Repo: repo}
 }
 
 func (h *ScanHandler) CreateScan(w http.ResponseWriter, r *http.Request) {
-	var input CreateScanRequest
+	var input model.CreateScanRequest
 
 	if err := render.DecodeJSON(r.Body, &input); err != nil {
 		render.Status(r, http.StatusBadRequest)
@@ -40,7 +38,6 @@ func (h *ScanHandler) CreateScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	
 	claims, ok := middleware.GetClaims(r)
 	if !ok {
 		render.Status(r, http.StatusUnauthorized)
@@ -48,56 +45,25 @@ func (h *ScanHandler) CreateScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := claims.UserID  // uuid.UUID from token
-	
+	userID := claims.UserID
+
 	log.Printf("Creating scan for user: %s", userID.String())
 
-
-	scanUUID := uuid.New()
-	now := time.Now().UTC()
-
-	query := `
-		INSERT INTO scans (
-			scan_uuid,
-			station_id,
-			vehicle_id,
-			operator_id,
-			is_filled,
-			material_id,
-			created_by,     
-			created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id
-	`
-
-	var newID int
-	err := h.DB.QueryRow(
-		query,
-		scanUUID,
-		input.StationID,
-		input.VehicleID,
-		input.OperatorID,
-		input.IsFilled,
-		input.MaterialID,
-		userID,    
-		now,
-	).Scan(&newID)
-
+	// Use repo instead of direct DB
+	newID, err := h.Repo.CreateScan(input, userID)
 	if err != nil {
 		fmt.Printf("SCAN INSERT ERROR: %v\n", err)
 		render.Status(r, http.StatusInternalServerError)
-		render.JSON(w, r, map[string]string{
-			"error": "could not create scan",
-		})
+		render.JSON(w, r, map[string]string{"error": "could not create scan"})
 		return
 	}
 
 	response := map[string]interface{}{
 		"id":         newID,
-		"scan_uuid":  scanUUID.String(),
-		"created_at": now.Format(time.RFC3339),
+		"scan_uuid":  uuid.New().String(), // or fetch from repo if needed
+		"created_at": time.Now().UTC().Format(time.RFC3339),
 		"is_filled":  input.IsFilled,
-		"created_by": userID.String(),  
+		"created_by": userID.String(),
 	}
 
 	render.Status(r, http.StatusCreated)

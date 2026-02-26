@@ -284,7 +284,7 @@ func (h *AuthHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, AuthResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshTokenPlain,
-		ExpiresIn:    900, // 15 minutes
+		ExpiresIn:    3600, // 15 minutes
 		Message:      "Login successful",
 	})
 }
