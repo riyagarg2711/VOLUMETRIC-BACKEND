@@ -39,6 +39,8 @@ func Setup(
 		// Protected endpoints
 		r.Post("/scans", scanHandler.CreateScan)
 		r.Post("/auth/logout", authHandler.Logout)
+		r.Get("/scans", scanHandler.ListUserScans)
+		r.Post("/scans/coordinates/bulk", coordHandler.GetCoordinatesBulk)
 		r.Post("/scans/{id}/coordinates", coordHandler.UploadCoordinates)
 		r.Get("/scans/{id}/coordinates", coordHandler.GetCoordinates)
 	})

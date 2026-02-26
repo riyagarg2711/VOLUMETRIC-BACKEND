@@ -176,3 +176,55 @@ func (h *CoordinateHandler) GetCoordinates(w http.ResponseWriter, r *http.Reques
 		"time_taken": end.String(),
 	})
 }
+type BulkScanIDs struct {
+    ScanIDs []int `json:"scan_ids"`
+}
+
+// POST /scans/coordinates/bulk
+func (h *CoordinateHandler) GetCoordinatesBulk(w http.ResponseWriter, r *http.Request) {
+    claims, ok := middleware.GetClaims(r)
+    if !ok {
+        render.Status(r, http.StatusUnauthorized)
+        render.JSON(w, r, map[string]string{"error": "User not authenticated"})
+        return
+    }
+
+    var req BulkScanIDs
+    if err := render.DecodeJSON(r.Body, &req); err != nil {
+        render.Status(r, http.StatusBadRequest)
+        render.JSON(w, r, map[string]string{"error": "Invalid JSON"})
+        return
+    }
+
+    if len(req.ScanIDs) == 0 {
+        render.Status(r, http.StatusBadRequest)
+        render.JSON(w, r, map[string]string{"error": "No scan IDs provided"})
+        return
+    }
+
+    // Optional: limit to reasonable number
+    if len(req.ScanIDs) > 500 {
+        render.Status(r, http.StatusBadRequest)
+        render.JSON(w, r, map[string]string{"error": "Maximum 500 scan IDs per request"})
+        return
+    }
+
+    start := time.Now()
+    coords, err := h.Repo.GetCoordinatesForScanIDs(req.ScanIDs, claims.UserID)
+    duration := time.Since(start)
+
+    if err != nil {
+        render.Status(r, http.StatusInternalServerError)
+        render.JSON(w, r, map[string]string{"error": "Failed to fetch coordinates"})
+        return
+    }
+
+    log.Printf("Bulk fetch: %d scans, %d coords in %v", len(req.ScanIDs), len(coords), duration)
+
+    render.Status(r, http.StatusOK)
+    render.JSON(w, r, map[string]interface{}{
+        "coordinates": coords,
+        "count":       len(coords),
+        "time_taken":  duration.String(),
+    })
+}

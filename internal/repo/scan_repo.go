@@ -72,4 +72,29 @@ func (r *ScanRepo) GetScanByID(id int) (*model.Scan, error) {
 	}
 	return scan, nil
 }
+// GetUserScans returns summary list of scans created by the user
+func (r *ScanRepo) GetUserScans(userID uuid.UUID) ([]model.ScanSummary, error) {
+    rows, err := r.db.Query(`
+        SELECT id, scan_uuid, vehicle_id, is_filled, material_id, created_at
+        FROM scans
+        WHERE created_by = $1
+        ORDER BY created_at DESC
+        LIMIT 100  -- temporary limit — add pagination later
+    `, userID)
+    if err != nil {
+        return nil, fmt.Errorf("query user scans failed: %w", err)
+    }
+    defer rows.Close()
 
+    var scans []model.ScanSummary
+    for rows.Next() {
+        var s model.ScanSummary
+        err := rows.Scan(&s.ID, &s.ScanUUID, &s.VehicleID, &s.IsFilled, &s.MaterialID, &s.CreatedAt)
+        if err != nil {
+            return nil, fmt.Errorf("scan row failed: %w", err)
+        }
+        scans = append(scans, s)
+    }
+
+    return scans, rows.Err()
+}

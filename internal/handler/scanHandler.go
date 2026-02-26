@@ -69,3 +69,31 @@ func (h *ScanHandler) CreateScan(w http.ResponseWriter, r *http.Request) {
 	render.Status(r, http.StatusCreated)
 	render.JSON(w, r, response)
 }
+// GET /scans — list current user's scans
+func (h *ScanHandler) ListUserScans(w http.ResponseWriter, r *http.Request) {
+    claims, ok := middleware.GetClaims(r)
+    if !ok {
+        render.Status(r, http.StatusUnauthorized)
+        render.JSON(w, r, map[string]string{"error": "User not authenticated"})
+        return
+    }
+
+    start := time.Now()
+    scans, err := h.Repo.GetUserScans(claims.UserID)
+    duration := time.Since(start)
+
+    if err != nil {
+        render.Status(r, http.StatusInternalServerError)
+        render.JSON(w, r, map[string]string{"error": "Failed to fetch scans"})
+        return
+    }
+
+    log.Printf("User %s fetched %d scans in %v", claims.UserID, len(scans), duration)
+
+    render.Status(r, http.StatusOK)
+    render.JSON(w, r, map[string]interface{}{
+        "scans": scans,
+        "count": len(scans),
+        "time_taken": duration.String(),
+    })
+}

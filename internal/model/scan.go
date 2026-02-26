@@ -26,3 +26,12 @@ type CreateScanRequest struct {
 	IsFilled   bool `json:"is_filled"`
 	MaterialID *int `json:"material_id,omitempty"`
 }
+
+type ScanSummary struct {
+    ID           int       `json:"id"`
+    ScanUUID     uuid.UUID `json:"scan_uuid"`
+    VehicleID    int       `json:"vehicle_id"`
+    IsFilled     bool      `json:"is_filled"`
+    MaterialID   *int      `json:"material_id,omitempty"`
+    CreatedAt    time.Time `json:"created_at"`
+}
