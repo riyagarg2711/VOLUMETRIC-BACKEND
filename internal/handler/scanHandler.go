@@ -60,7 +60,7 @@ func (h *ScanHandler) CreateScan(w http.ResponseWriter, r *http.Request) {
 
 	response := map[string]interface{}{
 		"id":         newID,
-		"scan_uuid":  uuid.New().String(), // or fetch from repo if needed
+		"scan_uuid":  uuid.New().String(), 
 		"created_at": time.Now().UTC().Format(time.RFC3339),
 		"is_filled":  input.IsFilled,
 		"created_by": userID.String(),

@@ -28,7 +28,7 @@ func NewCoordinateHandler(repo *repo.CoordinateRepo, scanRepo *repo.ScanRepo) *C
 // POST /scans/{id}/coordinates — upload CNS file
 func (h *CoordinateHandler) UploadCoordinates(w http.ResponseWriter, r *http.Request) {
 	scanIDStr := chi.URLParam(r, "id")
-	scanID, err := strconv.Atoi(scanIDStr)
+	scanID, err := strconv.Atoi(scanIDStr) //string into integer
 	if err != nil {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, map[string]string{"error": "Invalid scan ID"})
@@ -59,7 +59,7 @@ func (h *CoordinateHandler) UploadCoordinates(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	file, _, err := r.FormFile("cns_file") // input name = "cns_file"
+	file, _, err := r.FormFile("cns_file") 
 	if err != nil {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, map[string]string{"error": "Missing CNS file"})
@@ -87,12 +87,12 @@ func (h *CoordinateHandler) UploadCoordinates(w http.ResponseWriter, r *http.Req
 		}
 
 		if len(line) < 3 {
-			continue // skip invalid
+			continue 
 		}
 
 		x, err := strconv.ParseFloat(line[0], 64)
 		if err != nil {
-			continue // skip bad data
+			continue 
 		}
 		y, err := strconv.ParseFloat(line[1], 64)
 		if err != nil {
@@ -132,6 +132,7 @@ func (h *CoordinateHandler) UploadCoordinates(w http.ResponseWriter, r *http.Req
 
 // GET /scans/{id}/coordinates — fetch coords
 func (h *CoordinateHandler) GetCoordinates(w http.ResponseWriter, r *http.Request) {
+	log.Println("GetCoordinates started for path:", r.URL.Path)
 	scanIDStr := chi.URLParam(r, "id")
 	scanID, err := strconv.Atoi(scanIDStr)
 	if err != nil {
@@ -143,13 +144,16 @@ func (h *CoordinateHandler) GetCoordinates(w http.ResponseWriter, r *http.Reques
 	// Ownership check (same as upload)
 	claims, ok := middleware.GetClaims(r)
 	if !ok {
+		log.Println("GetCoordinates: claims missing")
 		render.Status(r, http.StatusUnauthorized)
 		render.JSON(w, r, map[string]string{"error": "User not authenticated"})
 		return
 	}
+	log.Printf("GetCoordinates: user ID from token = %s", claims.UserID.String())
 
 	scan, err := h.ScanRepo.GetScanByID(scanID)
 	if err != nil || scan == nil || scan.CreatedBy != claims.UserID {
+		log.Printf("GetCoordinates: invalid scan ID %q: %v", scanIDStr, err)
 		render.Status(r, http.StatusForbidden)
 		render.JSON(w, r, map[string]string{"error": "You don't own this scan"})
 		return
@@ -160,6 +164,7 @@ func (h *CoordinateHandler) GetCoordinates(w http.ResponseWriter, r *http.Reques
 
 	coords, err := h.Repo.GetCoordinatesByScanID(scanID)
 	if err != nil {
+		log.Printf("ERROR in GetCoordinatesByScanID for scan %d: %v", scanID, err)
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, map[string]string{"error": "Failed to fetch coordinates"})
 		return
@@ -202,7 +207,7 @@ func (h *CoordinateHandler) GetCoordinatesBulk(w http.ResponseWriter, r *http.Re
         return
     }
 
-    // Optional: limit to reasonable number
+   
     if len(req.ScanIDs) > 500 {
         render.Status(r, http.StatusBadRequest)
         render.JSON(w, r, map[string]string{"error": "Maximum 500 scan IDs per request"})

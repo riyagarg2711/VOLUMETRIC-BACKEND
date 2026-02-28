@@ -51,7 +51,7 @@ func (r *CoordinateRepo) GetCoordinatesByScanID(scanID int) ([]model.Coordinate,
 		SELECT id, scan_id, x, y, z, created_at
 		FROM coordinates
 		WHERE scan_id = $1
-		ORDER BY created_at ASC  // optional order
+		ORDER BY created_at ASC  
 	`, scanID)
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
@@ -82,7 +82,7 @@ func (r *CoordinateRepo) GetCoordinatesForScanIDs(scanIDs []int, userID uuid.UUI
         return []model.Coordinate{}, nil
     }
 
-    // Build placeholders: $1, $2, $3...
+  
     placeholders := make([]string, len(scanIDs))
     args := make([]interface{}, len(scanIDs)+1)
     args[0] = userID

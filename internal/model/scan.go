@@ -18,7 +18,6 @@ type Scan struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
-// CreateScanRequest is the JSON payload for POST /scans
 type CreateScanRequest struct {
 	StationID  *int `json:"station_id,omitempty"`
 	VehicleID  int  `json:"vehicle_id"`
