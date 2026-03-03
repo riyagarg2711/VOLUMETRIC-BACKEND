@@ -19,7 +19,7 @@ func GenerateAccessToken(user *models.User, roles, permissions []string) (string
 		Roles:       roles,
 		Permissions: permissions,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(60 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(10 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "volumetric-backend",
 		},
