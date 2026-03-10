@@ -139,12 +139,11 @@ from tqdm import tqdm
 BASE_URL = "http://localhost:8080"
 EMAIL = "admin@example.com"
 LOG_FILE = "server.log"
-CSV_FILE_PATH = "/home/riya/Desktop/cns4 1.csv"  # large CSV — use small for testing
+CSV_FILE_PATH = "/home/riya/Desktop/cns4 1.csv"  
 NUM_SCANS = 200
-MAX_WORKERS = 5  # threads — start with 5-10, increase if server handles
-DELAY_BETWEEN_BATCHES = 1  # seconds between batches (to avoid overload)
-RETRY_COUNT = 3  # retry on fail
-# ===========================================
+MAX_WORKERS = 5  
+DELAY_BETWEEN_BATCHES = 1  
+RETRY_COUNT = 3
 
 DEVICE_ID = None
 ACCESS_TOKEN = None

@@ -16,6 +16,8 @@ type Scan struct {
 	MaterialID *int      `json:"material_id,omitempty"`
 	CreatedBy  uuid.UUID `sql:"created_by"`
 	CreatedAt  time.Time `json:"created_at"`
+	VolumeM3             *float64  `json:"volume_m3,omitempty"`      
+    VolumeCalculatedAt   *time.Time `json:"volume_calculated_at,omitempty"`  
 }
 
 type CreateScanRequest struct {
