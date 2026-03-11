@@ -45,7 +45,7 @@ func Setup(
 		r.Post("/scans/{id}/coordinates", coordHandler.UploadCoordinates)
 		r.Get("/scans/{id}/coordinates", coordHandler.GetCoordinates)
 		r.Post("/scans/{id}/volume", volumeHandler.CalculateSingleVolume)
-r.Post("/trucks/{vehicle_id}/volume-diff", volumeHandler.CalculateTruckVolumeDiff)
+		r.Post("/trucks/{vehicle_id}/volume-diff", volumeHandler.CalculateTruckVolumeDiff)
 	})
 
 	return r

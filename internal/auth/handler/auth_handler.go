@@ -16,7 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"volumetric-backend/internal/auth/jwt"
-	
+
 	"volumetric-backend/internal/auth/models"
 	"volumetric-backend/internal/auth/repo"
 	"volumetric-backend/internal/auth/utils"
@@ -59,9 +59,8 @@ type RefreshRequest struct {
 }
 
 type LogoutRequest struct {
-	RefreshToken string `json:"refresh_token,omitempty"` 
+	RefreshToken string `json:"refresh_token,omitempty"`
 }
-
 
 // POST /auth/otp/send
 func (h *AuthHandler) SendOTP(w http.ResponseWriter, r *http.Request) {
@@ -280,6 +279,32 @@ func (h *AuthHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 	// 9. Success
 	log.Printf("VerifyOTP: success for %s", email)
 
+	// Cookie for access_token (short-lived)
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    accessToken,
+		Path:     "/",
+		Domain:   "",    
+		HttpOnly: true,  
+		Secure:   true, 
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   3600, 
+		Expires:  time.Now().Add(1 * time.Hour),
+	})
+
+	// Cookie for device_id (long-lived, client needs it)
+	http.SetCookie(w, &http.Cookie{
+		Name:     "device_id",
+		Value:    deviceID,
+		Path:     "/",
+		Domain:   "",
+		HttpOnly: true,
+		Secure:   true, 
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   60 * 60 * 24 * 7, // 7 days
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
+	})
+
 	render.Status(r, http.StatusOK)
 	render.JSON(w, r, AuthResponse{
 		AccessToken:  accessToken,
@@ -374,7 +399,7 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	// 5. Update last activity (via repo — clean)
 	if err := h.Repo.UpdateSessionLastActivity(session.ID); err != nil {
 		log.Printf("RefreshToken: failed to update activity: %v", err)
-	
+
 	}
 
 	// 6. Success
@@ -387,51 +412,48 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-
-
-
 // POST /auth/logout — invalidate current session
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-    // 1. Get token from header (manual check — no middleware here)
-    authHeader := r.Header.Get("Authorization")
-    if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-        render.Status(r, http.StatusUnauthorized)
-        render.JSON(w, r, map[string]string{"error": "Missing or invalid token"})
-        return
-    }
+	// 1. Get token from header (manual check — no middleware here)
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		render.Status(r, http.StatusUnauthorized)
+		render.JSON(w, r, map[string]string{"error": "Missing or invalid token"})
+		return
+	}
 
-    tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 
-    // 2. Validate token (same as middleware)
-    claims, err := jwt.ValidateAccessToken(tokenStr)
-    if err != nil {
-        log.Printf("Logout: token invalid: %v", err)
-        render.Status(r, http.StatusUnauthorized)
-        render.JSON(w, r, map[string]string{"error": "Invalid or expired token"})
-        return
-    }
+	// 2. Validate token (same as middleware)
+	claims, err := jwt.ValidateAccessToken(tokenStr)
+	if err != nil {
+		log.Printf("Logout: token invalid: %v", err)
+		render.Status(r, http.StatusUnauthorized)
+		render.JSON(w, r, map[string]string{"error": "Invalid or expired token"})
+		return
+	}
 
-    userID := claims.UserID
+	userID := claims.UserID
 
-    // 3. Optional: use device_id if sent
-    deviceID := r.Header.Get("X-Device-ID")
-    if deviceID == "" {
-        deviceID = "unknown"
-    }
+	// 3. Optional: use device_id if sent
+	deviceID := r.Header.Get("X-Device-ID")
+	if deviceID == "" {
+		deviceID = "unknown"
+	}
 
-    // 4. Invalidate the session
-    err = h.Repo.InvalidateSessionByUserAndDevice(userID, deviceID)
-    if err != nil {
-        log.Printf("Logout: failed to invalidate for user %s: %v", userID, err)
-        render.Status(r, http.StatusInternalServerError)
-        render.JSON(w, r, map[string]string{"error": "Failed to logout"})
-        return
-    }
+	// 4. Invalidate the session
+	err = h.Repo.InvalidateSessionByUserAndDevice(userID, deviceID)
+	if err != nil {
+		log.Printf("Logout: failed to invalidate for user %s: %v", userID, err)
+		render.Status(r, http.StatusInternalServerError)
+		render.JSON(w, r, map[string]string{"error": "Failed to logout"})
+		return
+	}
 
-    // 5. Success
-    log.Printf("Logout: success for user %s", userID)
-    render.Status(r, http.StatusOK)
-    render.JSON(w, r, map[string]string{"message": "Logged out successfully"})
+	// 5. Success
+	log.Printf("Logout: success for user %s", userID)
+	render.Status(r, http.StatusOK)
+	render.JSON(w, r, map[string]string{"message": "Logged out successfully"})
 }
 
 // (9) This file handles all authentication HTTP requests.

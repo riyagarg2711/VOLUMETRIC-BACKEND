@@ -3,7 +3,7 @@ package handler
 import (
     
     "math/rand"
-    "time"
+
 
     "github.com/google/uuid"
 )
@@ -23,7 +23,8 @@ func NewMockVolumeCalculator() VolumeCalculator {
 
 func (m *MockVolumeCalculator) CalculateVolume(scanID int, isFilled bool, userID uuid.UUID) (float64, error) {
     // Seed random with scan ID for reproducible results
-    rand.Seed(time.Now().Unix() + int64(scanID))
+   // rand.Seed(time.Now().Unix() + int64(scanID))
+   rand.Seed(int64(scanID))
 
     if isFilled {
         // Filled: 20–80 m³ (random)

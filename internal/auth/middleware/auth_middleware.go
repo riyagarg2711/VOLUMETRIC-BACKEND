@@ -10,7 +10,8 @@ import (
 
 	"volumetric-backend/internal/auth/jwt"
 	"volumetric-backend/internal/auth/models"
-	"volumetric-backend/internal/auth/repo"  
+
+	"volumetric-backend/internal/auth/repo"
 )
 
 // context key to store claims
@@ -19,69 +20,82 @@ type contextKey string
 const ClaimsKey contextKey = "claims"
 
 
-// AuthMiddleware validates JWT and checks session validity
+
 func AuthMiddleware(repo *repo.AuthRepo) func(http.Handler) http.Handler {
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            log.Printf("AuthMiddleware called for path: %s", r.URL.Path)
 
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// log.Printf("RAW HEADERS: %+v", r.Header)
-			// log.Printf("AuthMiddleware called for path: %s", r.URL.Path)
-			// log.Printf("Authorization header received: %q", r.Header.Get("Authorization"))
-			// log.Printf("X-Device-ID header: %q", r.Header.Get("X-Device-ID"))
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				render.Status(r, http.StatusUnauthorized)
-				render.JSON(w, r, map[string]string{"error": "Missing token"})
-				return
-			}
+            var tokenStr string
+            var deviceID string
 
-			if !strings.HasPrefix(authHeader, "Bearer ") {
-				render.Status(r, http.StatusUnauthorized)
-				render.JSON(w, r, map[string]string{"error": "Invalid token format"})
-				return
-			}
+            // 1. First try cookies (preferred for browser/QT clients)
+            accessCookie, errCookie := r.Cookie("access_token")
+            deviceCookie, errDevice := r.Cookie("device_id")
+			log.Println(errDevice)
 
-			tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+            if errCookie == nil && deviceCookie == nil {
+                // Cookies exist → use them
+                tokenStr = accessCookie.Value
+                deviceID = deviceCookie.Value
+                log.Printf("Using cookies - access_token & device_id found")
+            } else {
+                // 2. Fallback to headers (for curl/Postman/manual testing)
+                authHeader := r.Header.Get("Authorization")
+                if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+                    tokenStr = strings.TrimPrefix(authHeader, "Bearer ")
+                }
+                deviceID = r.Header.Get("X-Device-ID")
+                log.Printf("Using headers - Authorization & X-Device-ID")
+            }
 
-			claims, err := jwt.ValidateAccessToken(tokenStr)
-			if err != nil {
-				log.Printf("AuthMiddleware: token invalid: %v", err)
-				render.Status(r, http.StatusUnauthorized)
-				render.JSON(w, r, map[string]string{"error": "Invalid or expired token"})
-				return
-			}
+            // 3. If neither cookies nor headers have token → reject
+            if tokenStr == "" {
+                log.Printf("No access token found (neither cookie nor header)")
+                render.Status(r, http.StatusUnauthorized)
+                render.JSON(w, r, map[string]string{"error": "Missing token"})
+                return
+            }
 
-			// Skip session check for logout endpoint
-			if r.URL.Path == "/auth/logout" {
-				ctx := context.WithValue(r.Context(), ClaimsKey, claims)
-				next.ServeHTTP(w, r.WithContext(ctx))
-				return
-			}
+            // 4. If no device ID → reject (required for session check)
+            if deviceID == "" {
+                log.Printf("No device ID found")
+                render.Status(r, http.StatusBadRequest)
+                render.JSON(w, r, map[string]string{"error": "Device ID required"})
+                return
+            }
 
-			// Require X-Device-ID for all other protected routes
-			deviceID := r.Header.Get("X-Device-ID")
-			if deviceID == "" {
-				log.Printf("AuthMiddleware: missing X-Device-ID for path %s", r.URL.Path)
-				render.Status(r, http.StatusBadRequest)
-				render.JSON(w, r, map[string]string{"error": "X-Device-ID header required"})
-				return
-			}
+            // 5. Validate JWT (same as before)
+            claims, err := jwt.ValidateAccessToken(tokenStr)
+            if err != nil {
+                log.Printf("Token invalid: %v", err)
+                render.Status(r, http.StatusUnauthorized)
+                render.JSON(w, r, map[string]string{"error": "Invalid or expired token"})
+                return
+            }
 
-			// Full session check for protected routes (scans, etc.)
-			session, err := repo.GetSessionByUserAndDevice(claims.UserID, deviceID)
-			if err != nil || session == nil || !session.IsValid {
-				log.Printf("AuthMiddleware: session invalid for user %s device %s", claims.UserID, deviceID)
-				render.Status(r, http.StatusUnauthorized)
-				render.JSON(w, r, map[string]string{"error": "Session invalid or logged out"})
-				return
-			}
+            // 6. Skip session check for logout (no device check needed)
+            if r.URL.Path == "/auth/logout" {
+                ctx := context.WithValue(r.Context(), ClaimsKey, claims)
+                next.ServeHTTP(w, r.WithContext(ctx))
+                return
+            }
 
-			ctx := context.WithValue(r.Context(), ClaimsKey, claims)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
+            // 7. Full session validation (using device_id)
+            session, err := repo.GetSessionByUserAndDevice(claims.UserID, deviceID)
+            if err != nil || session == nil || !session.IsValid {
+                log.Printf("Session invalid for user %s device %s: %v", claims.UserID, deviceID, err)
+                render.Status(r, http.StatusUnauthorized)
+                render.JSON(w, r, map[string]string{"error": "Session invalid or logged out"})
+                return
+            }
+
+            // 8. Store claims in context
+            ctx := context.WithValue(r.Context(), ClaimsKey, claims)
+            next.ServeHTTP(w, r.WithContext(ctx))
+        })
+    }
 }
-
 // Helper to get claims in handlers
 func GetClaims(r *http.Request) (*models.Claims, bool) {
 	claims, ok := r.Context().Value(ClaimsKey).(*models.Claims)
