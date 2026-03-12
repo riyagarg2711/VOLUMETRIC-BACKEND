@@ -1,26 +1,27 @@
 package model
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type EntryStatus int
 
 const (
-	EmptyScanDone  = 0
-	FilledScanDone = 1
-	BothScanDone   = 2
+	EntryStatusEmptyOnly  EntryStatus = 0
+	EntryStatusFilledOnly EntryStatus = 1
+	EntryStatusBoth       EntryStatus = 2
 )
 
 type Entry struct {
-	ID           int         `json:"id"`
-	EntryUUID    uuid.UUID   `json:"entry_uuid"`
-	VehicleID    string      `json:"vehicle_id"`
-	EmptyScanID  *int        `json:"empty_scan_id,omitempty"`
-	FilledScanID *int        `json:"filled_scan_id,omitempty"`
-	Volume       *float64    `json:"volume,omitempty"`
-	Status       EntryStatus `json:"status"`
-	CreatedAt    time.Time   `json:"created_at"`
-	UpdatedAt    time.Time   `json:"updated_at"`
+	ID             int64      `json:"id"`
+	EntryUUID      uuid.UUID  `json:"entry_uuid"`
+	VehicleID      int        `json:"vehicle_id"`
+	EmptyScanID    *int       `json:"empty_scan_id,omitempty"`
+	FilledScanID   *int       `json:"filled_scan_id,omitempty"`
+	VolumeM3       *float64   `json:"volume_m3,omitempty"`
+	Status         EntryStatus `json:"status"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }

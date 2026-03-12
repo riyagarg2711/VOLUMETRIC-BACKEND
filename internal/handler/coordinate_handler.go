@@ -19,23 +19,36 @@ import (
 type CoordinateHandler struct {
 	Repo *repo.CoordinateRepo
 	ScanRepo *repo.ScanRepo  
+	EntryRepo  *repo.EntryRepo     
+    VolumeCalc VolumeCalculator   
 }
 
-func NewCoordinateHandler(repo *repo.CoordinateRepo, scanRepo *repo.ScanRepo) *CoordinateHandler {
-	return &CoordinateHandler{Repo: repo, ScanRepo: scanRepo}
+func NewCoordinateHandler(
+    coordRepo *repo.CoordinateRepo,
+    scanRepo *repo.ScanRepo,
+    entryRepo *repo.EntryRepo,
+    volumeCalc VolumeCalculator,
+) *CoordinateHandler {
+    return &CoordinateHandler{
+        Repo:       coordRepo,
+        ScanRepo:   scanRepo,
+        EntryRepo:  entryRepo,
+        VolumeCalc: volumeCalc,
+    }
 }
 
-// POST /scans/{id}/coordinates — upload CNS file
+// POST /scans/{id}/coordinates — upload CNS file + create/update entry
+// POST /scans/{id}/coordinates — upload CNS file + create/update entry
 func (h *CoordinateHandler) UploadCoordinates(w http.ResponseWriter, r *http.Request) {
 	scanIDStr := chi.URLParam(r, "id")
-	scanID, err := strconv.Atoi(scanIDStr) //string into integer
+	scanID, err := strconv.Atoi(scanIDStr)
 	if err != nil {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, map[string]string{"error": "Invalid scan ID"})
 		return
 	}
 
-	// Check ownership
+	// Ownership check
 	claims, ok := middleware.GetClaims(r)
 	if !ok {
 		render.Status(r, http.StatusUnauthorized)
@@ -43,7 +56,6 @@ func (h *CoordinateHandler) UploadCoordinates(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Assume GetScanByID in ScanRepo — check created_by
 	scan, err := h.ScanRepo.GetScanByID(scanID)
 	if err != nil || scan == nil || scan.CreatedBy != claims.UserID {
 		render.Status(r, http.StatusForbidden)
@@ -51,15 +63,15 @@ func (h *CoordinateHandler) UploadCoordinates(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Parse file
-	err = r.ParseMultipartForm(32 << 20) // 32MB max
+	// === Parse & Store Coordinates ===
+	err = r.ParseMultipartForm(32 << 20)
 	if err != nil {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, map[string]string{"error": "Failed to parse file"})
 		return
 	}
 
-	file, _, err := r.FormFile("cns_file") 
+	file, _, err := r.FormFile("cns_file")
 	if err != nil {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, map[string]string{"error": "Missing CNS file"})
@@ -67,9 +79,7 @@ func (h *CoordinateHandler) UploadCoordinates(w http.ResponseWriter, r *http.Req
 	}
 	defer file.Close()
 
-	// Time measurement
 	start := time.Now()
-
 	reader := csv.NewReader(file)
 	var coords []model.Coordinate
 	lineNumber := 0
@@ -82,35 +92,20 @@ func (h *CoordinateHandler) UploadCoordinates(w http.ResponseWriter, r *http.Req
 		}
 		if err != nil {
 			render.Status(r, http.StatusBadRequest)
-			render.JSON(w, r, map[string]string{"error": fmt.Sprintf("Parse error at line %d: %v", lineNumber, err)})
+			render.JSON(w, r, map[string]string{"error": fmt.Sprintf("Parse error at line %d", lineNumber)})
 			return
 		}
-
 		if len(line) < 3 {
-			continue 
-		}
-
-		x, err := strconv.ParseFloat(line[0], 64)
-		if err != nil {
-			continue 
-		}
-		y, err := strconv.ParseFloat(line[1], 64)
-		if err != nil {
-			continue
-		}
-		z, err := strconv.ParseFloat(line[2], 64)
-		if err != nil {
 			continue
 		}
 
-		coords = append(coords, model.Coordinate{
-			X: x,
-			Y: y,
-			Z: z,
-		})
+		x, _ := strconv.ParseFloat(line[0], 64)
+		y, _ := strconv.ParseFloat(line[1], 64)
+		z, _ := strconv.ParseFloat(line[2], 64)
+
+		coords = append(coords, model.Coordinate{X: x, Y: y, Z: z})
 	}
 
-	// Store
 	err = h.Repo.BatchInsertCoordinates(scanID, coords)
 	if err != nil {
 		render.Status(r, http.StatusInternalServerError)
@@ -118,17 +113,83 @@ func (h *CoordinateHandler) UploadCoordinates(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// === Entry Table Logic ===
+	log.Printf("Starting entry logic for scan %d (vehicle %d, is_filled=%v)", scanID, scan.VehicleID, scan.IsFilled)
+
+	entry, err := h.EntryRepo.GetActiveEntryByVehicle(scan.VehicleID)
+	if err != nil {
+		log.Printf("Entry lookup failed for vehicle %d: %v", scan.VehicleID, err)
+		// Continue — entry is optional
+	} else if entry != nil {
+		log.Printf("Found existing entry %d (status %d, empty=%v, filled=%v)", 
+			entry.ID, entry.Status, entry.EmptyScanID, entry.FilledScanID)
+	}
+
+	if entry == nil {
+		// No active entry → create new one
+		newEntry := &model.Entry{
+			VehicleID: scan.VehicleID,
+		}
+		if scan.IsFilled {
+			newEntry.FilledScanID = &scanID
+			newEntry.Status = 1 // filled only
+		} else {
+			newEntry.EmptyScanID = &scanID
+			newEntry.Status = 0 // empty only
+		}
+
+		err = h.EntryRepo.CreateEntry(newEntry)
+		if err != nil {
+			log.Printf("Create entry failed: %v", err)
+		} else {
+			log.Printf("Created new entry for vehicle %d (status %d)", scan.VehicleID, newEntry.Status)
+		}
+	} else {
+		// Update existing entry
+		updated := false
+		if scan.IsFilled && entry.FilledScanID == nil {
+			entry.FilledScanID = &scanID
+			updated = true
+		} else if !scan.IsFilled && entry.EmptyScanID == nil {
+			entry.EmptyScanID = &scanID
+			updated = true
+		}
+
+		if updated {
+			if entry.EmptyScanID != nil && entry.FilledScanID != nil {
+				emptyVol, err := h.VolumeCalc.CalculateVolume(*entry.EmptyScanID, false, claims.UserID)
+				if err != nil {
+					log.Printf("Empty volume calc failed: %v", err)
+				}
+				filledVol, err := h.VolumeCalc.CalculateVolume(*entry.FilledScanID, true, claims.UserID)
+				if err != nil {
+					log.Printf("Filled volume calc failed: %v", err)
+				}
+				diff := filledVol - emptyVol
+				entry.VolumeM3 = &diff
+				entry.Status = 2 // both done
+			}
+			err = h.EntryRepo.UpdateEntry(entry)
+			if err != nil {
+				log.Printf("Update entry failed: %v", err)
+			} else {
+				log.Printf("Updated entry %d (status %d, volume=%v)", entry.ID, entry.Status, entry.VolumeM3)
+			}
+		}
+	}
+
 	end := time.Since(start)
 	log.Printf("Upload for scan %d: %d coords in %v", scanID, len(coords), end)
 
 	render.Status(r, http.StatusOK)
 	render.JSON(w, r, map[string]interface{}{
-		"message": "Coordinates stored",
-		"scan_id": scanID,
-		"count": len(coords),
+		"message":    "Coordinates stored",
+		"scan_id":    scanID,
+		"count":      len(coords),
 		"time_taken": end.String(),
 	})
 }
+
 
 // GET /scans/{id}/coordinates — fetch coords
 func (h *CoordinateHandler) GetCoordinates(w http.ResponseWriter, r *http.Request) {

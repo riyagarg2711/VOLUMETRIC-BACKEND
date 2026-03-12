@@ -29,22 +29,29 @@ func main() {
 	authRepo := authr.NewAuthRepo(dbConn)
 	scanRepo := repo.NewScanRepo(dbConn)
 	coordRepo := repo.NewCoordinateRepo(dbConn)
-	
+	entryRepo := repo.NewEntryRepo(dbConn)
+	volumeCalc := handler.NewMockVolumeCalculator()
 
 	// Handlers(function that handles incoming HTTP requests) — used aliases to avoid conflict
 	// scanHandler := &domain.ScanHandler{DB: dbConn}
 	authHandler := authh.NewAuthHandler(authRepo)
 	scanHandler := handler.NewScanHandler(scanRepo)
-	coordHandler := handler.NewCoordinateHandler(coordRepo, scanRepo)
+	coordHandler := handler.NewCoordinateHandler(
+		coordRepo,
+		scanRepo,
+		entryRepo,
+		volumeCalc,
+	)
 	
+	
+	volumeHandler := handler.NewVolumeHandler(scanRepo, entryRepo, volumeCalc)
 
 	// Router decides which URL path maps to which handler
-	r := router.Setup(scanHandler, authHandler, authRepo, coordHandler)
+	r := router.Setup(scanHandler, authHandler, authRepo, coordHandler, volumeHandler)
 
 	log.Printf("Server running on :%s\n", cfg.ServerPort)
 	log.Fatal(http.ListenAndServe(":"+cfg.ServerPort, r))
 
-	
 }
 
 // (1) It starts a web server that:
@@ -59,4 +66,3 @@ func main() {
 
 // Setup routes (URL mapping)
 
-// Start server
