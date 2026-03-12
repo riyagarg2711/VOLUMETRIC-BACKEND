@@ -16,7 +16,7 @@ func Setup(
 	authHandler *handler.AuthHandler,
 	authRepo *repo.AuthRepo,
 	coordHandler *domain.CoordinateHandler,
-	volumeHandler *domain.VolumeHandler,
+
 ) *chi.Mux {
 	r := chi.NewRouter()
 
@@ -44,8 +44,7 @@ func Setup(
 		r.Post("/scans/coordinates/bulk", coordHandler.GetCoordinatesBulk)
 		r.Post("/scans/{id}/coordinates", coordHandler.UploadCoordinates)
 		r.Get("/scans/{id}/coordinates", coordHandler.GetCoordinates)
-		r.Post("/scans/{id}/volume", volumeHandler.CalculateSingleVolume)
-		r.Post("/trucks/{vehicle_id}/volume-diff", volumeHandler.CalculateTruckVolumeDiff)
+	
 	})
 
 	return r
