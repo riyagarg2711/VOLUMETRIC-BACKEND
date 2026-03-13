@@ -5,19 +5,18 @@ import (
 	"strconv"
 	"volumetric-backend/internal/auth/middleware"
 	"volumetric-backend/internal/model"
-	"volumetric-backend/internal/repo"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 )
 
 type VolumeHandler struct {
-	ScanRepo   *repo.ScanRepo
-	EntryRepo  *repo.EntryRepo
+	ScanRepo   ScanStore
+	EntryRepo  EntryStore
 	VolumeCalc VolumeCalculator
 }
 
-func NewVolumeHandler(scanRepo *repo.ScanRepo, entryRepo *repo.EntryRepo, volumeCalc VolumeCalculator) *VolumeHandler {
+func NewVolumeHandler(scanRepo ScanStore, entryRepo EntryStore, volumeCalc VolumeCalculator) *VolumeHandler {
 	return &VolumeHandler{
 		ScanRepo:   scanRepo,
 		EntryRepo:  entryRepo,

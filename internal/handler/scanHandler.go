@@ -9,17 +9,15 @@ import (
 	"volumetric-backend/internal/auth/middleware"
 	"volumetric-backend/internal/model"
 
-	"volumetric-backend/internal/repo"
-
 	"github.com/go-chi/render"
 	"github.com/google/uuid"
 )
 
 type ScanHandler struct {
-	Repo *repo.ScanRepo  
+	Repo ScanStore
 }
 
-func NewScanHandler(repo *repo.ScanRepo) *ScanHandler {
+func NewScanHandler(repo ScanStore) *ScanHandler {
 	return &ScanHandler{Repo: repo}
 }
 

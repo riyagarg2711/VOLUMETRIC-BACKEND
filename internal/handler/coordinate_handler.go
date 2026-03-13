@@ -13,28 +13,27 @@ import (
 	"github.com/go-chi/render"
 	"volumetric-backend/internal/auth/middleware"
 	"volumetric-backend/internal/model"
-	"volumetric-backend/internal/repo"
 )
 
 type CoordinateHandler struct {
-	Repo *repo.CoordinateRepo
-	ScanRepo *repo.ScanRepo  
-	EntryRepo  *repo.EntryRepo     
-    VolumeCalc VolumeCalculator   
+	Repo       CoordinateStore
+	ScanRepo   ScanStore
+	EntryRepo  EntryStore
+	VolumeCalc VolumeCalculator
 }
 
 func NewCoordinateHandler(
-    coordRepo *repo.CoordinateRepo,
-    scanRepo *repo.ScanRepo,
-    entryRepo *repo.EntryRepo,
-    volumeCalc VolumeCalculator,
+	coordRepo CoordinateStore,
+	scanRepo ScanStore,
+	entryRepo EntryStore,
+	volumeCalc VolumeCalculator,
 ) *CoordinateHandler {
-    return &CoordinateHandler{
-        Repo:       coordRepo,
-        ScanRepo:   scanRepo,
-        EntryRepo:  entryRepo,
-        VolumeCalc: volumeCalc,
-    }
+	return &CoordinateHandler{
+		Repo:       coordRepo,
+		ScanRepo:   scanRepo,
+		EntryRepo:  entryRepo,
+		VolumeCalc: volumeCalc,
+	}
 }
 
 // POST /scans/{id}/coordinates — upload CNS file + create/update entry
