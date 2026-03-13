@@ -4,54 +4,26 @@ import (
 	"log"
 	"net/http"
 
-	authh "volumetric-backend/internal/auth/handler" //  alias "authh" for AuthHandler
-	authr "volumetric-backend/internal/auth/repo"    //  alias for repo
-	"volumetric-backend/internal/handler"
-	// domain "volumetric-backend/internal/handler" //  alias "domain" for your original ScanHandler etc.
-	"volumetric-backend/internal/repo"
-
+	"volumetric-backend/internal/app"
 	"volumetric-backend/internal/config"
 	"volumetric-backend/internal/db"
 	"volumetric-backend/internal/router"
 )
 
 func main() {
-	cfg := config.Load()      //It reads env file, or environment variables, or config files
-	dbConn := db.Connect(cfg) //gateway to run db queries
+	cfg := config.Load()
+	dbConn := db.Connect(cfg)
 
-	//  DB check
 	if err := dbConn.Ping(); err != nil {
 		log.Fatalf("Database ping failed: %v", err)
 	}
 	log.Println("Database connection OK")
 
-	// Repositories(Repo is layer that directly talks to db)
-	authRepo := authr.NewAuthRepo(dbConn)
-	scanRepo := repo.NewScanRepo(dbConn)
-	coordRepo := repo.NewCoordinateRepo(dbConn)
-	entryRepo := repo.NewEntryRepo(dbConn)
-	volumeCalc := handler.NewMockVolumeCalculator()
-
-	// Handlers(function that handles incoming HTTP requests) — used aliases to avoid conflict
-	// scanHandler := &domain.ScanHandler{DB: dbConn}
-	authHandler := authh.NewAuthHandler(authRepo)
-	scanHandler := handler.NewScanHandler(scanRepo)
-	coordHandler := handler.NewCoordinateHandler(
-		coordRepo,
-		scanRepo,
-		entryRepo,
-		volumeCalc,
-	)
-	
-	
-	volumeHandler := handler.NewVolumeHandler(scanRepo, entryRepo, volumeCalc)
-
-	// Router decides which URL path maps to which handler
-	r := router.Setup(scanHandler, authHandler, authRepo, coordHandler, volumeHandler)
+	a := app.New(dbConn)
+	r := router.Setup(a)
 
 	log.Printf("Server running on :%s\n", cfg.ServerPort)
 	log.Fatal(http.ListenAndServe(":"+cfg.ServerPort, r))
-
 }
 
 // (1) It starts a web server that:
@@ -65,4 +37,3 @@ func main() {
 // Create handlers (business logic layer)
 
 // Setup routes (URL mapping)
-

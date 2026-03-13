@@ -1,52 +1,39 @@
 package router
 
 import (
-	"volumetric-backend/internal/auth/handler"
-
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware" // Chi's middlewares
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
-	authmw "volumetric-backend/internal/auth/middleware"
-	"volumetric-backend/internal/auth/repo"
-	domain "volumetric-backend/internal/handler"
+
+	"volumetric-backend/internal/app"
 )
 
-func Setup(
-	scanHandler *domain.ScanHandler,
-	authHandler *handler.AuthHandler,
-	authRepo *repo.AuthRepo,
-	coordHandler *domain.CoordinateHandler,
-	volumeHandler *domain.VolumeHandler,
-
-) *chi.Mux {
+func Setup(a *app.App) *chi.Mux {
 	r := chi.NewRouter()
 
-	// Global middlewares (Chi's)
+	// Global middlewares
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(render.SetContentType(render.ContentTypeJSON))
 
 	// ── Public routes ──
 	r.Group(func(r chi.Router) {
-		r.Post("/auth/otp/send", authHandler.SendOTP)
-		r.Post("/auth/otp/verify", authHandler.VerifyOTP)
-		r.Post("/auth/refresh", authHandler.RefreshToken)
-
+		r.Post("/auth/otp/send", a.AuthHandler.SendOTP)
+		r.Post("/auth/otp/verify", a.AuthHandler.VerifyOTP)
+		r.Post("/auth/refresh", a.AuthHandler.RefreshToken)
 	})
 
 	// ── Protected routes ──
 	r.Group(func(r chi.Router) {
-		r.Use(authmw.AuthMiddleware(authRepo))
+		r.Use(a.AuthMiddleware)
 
-		// Protected endpoints
-		r.Post("/scans", scanHandler.CreateScan)
-		r.Post("/auth/logout", authHandler.Logout)
-		r.Get("/scans", scanHandler.ListUserScans)
-		r.Post("/scans/coordinates/bulk", coordHandler.GetCoordinatesBulk)
-		r.Post("/scans/{id}/coordinates", coordHandler.UploadCoordinates)
-		r.Get("/scans/{id}/coordinates", coordHandler.GetCoordinates)
-		r.Post("/trucks/{vehicle_id}/volume-diff", volumeHandler.CalculateDiff)
-	
+		r.Post("/auth/logout", a.AuthHandler.Logout)
+		r.Post("/scans", a.ScanHandler.CreateScan)
+		r.Get("/scans", a.ScanHandler.ListUserScans)
+		r.Post("/scans/coordinates/bulk", a.CoordHandler.GetCoordinatesBulk)
+		r.Post("/scans/{id}/coordinates", a.CoordHandler.UploadCoordinates)
+		r.Get("/scans/{id}/coordinates", a.CoordHandler.GetCoordinates)
+		r.Post("/trucks/{vehicle_id}/volume-diff", a.VolumeHandler.CalculateDiff)
 	})
 
 	return r
