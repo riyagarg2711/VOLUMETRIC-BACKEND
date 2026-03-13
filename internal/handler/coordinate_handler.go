@@ -23,6 +23,7 @@ type CoordinateHandler struct {
     VolumeCalc VolumeCalculator   
 }
 
+// constructor
 func NewCoordinateHandler(
     coordRepo *repo.CoordinateRepo,
     scanRepo *repo.ScanRepo,
@@ -37,7 +38,7 @@ func NewCoordinateHandler(
     }
 }
 
-// POST /scans/{id}/coordinates — upload CNS file + create/update entry
+
 // POST /scans/{id}/coordinates — upload CNS file + create/update entry
 func (h *CoordinateHandler) UploadCoordinates(w http.ResponseWriter, r *http.Request) {
 	scanIDStr := chi.URLParam(r, "id")
@@ -63,7 +64,7 @@ func (h *CoordinateHandler) UploadCoordinates(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// === Parse & Store Coordinates ===
+	// Parse & Store Coordinates
 	err = r.ParseMultipartForm(32 << 20)
 	if err != nil {
 		render.Status(r, http.StatusBadRequest)
@@ -106,7 +107,7 @@ func (h *CoordinateHandler) UploadCoordinates(w http.ResponseWriter, r *http.Req
 		coords = append(coords, model.Coordinate{X: x, Y: y, Z: z})
 	}
 
-	err = h.Repo.BatchInsertCoordinates(scanID, coords)
+	err = h.Repo.BatchInsertCoordinates(scanID, coords) // save coords to db
 	if err != nil {
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, map[string]string{"error": "Failed to store coordinates"})

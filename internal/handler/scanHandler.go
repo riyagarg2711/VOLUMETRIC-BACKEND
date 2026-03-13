@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// Handler needs repository to talk to database.
 type ScanHandler struct {
 	Repo *repo.ScanRepo  
 }
@@ -38,19 +39,19 @@ func (h *ScanHandler) CreateScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, ok := middleware.GetClaims(r)
+	claims, ok := middleware.GetClaims(r) //extract user from jwt
 	if !ok {
 		render.Status(r, http.StatusUnauthorized)
 		render.JSON(w, r, map[string]string{"error": "User not authenticated"})
 		return
 	}
 
-	userID := claims.UserID
+	userID := claims.UserID  //extract userid from claims
 
 	log.Printf("Creating scan for user: %s", userID.String())
 
-	// Use repo instead of direct DB
-	newID, err := h.Repo.CreateScan(input, userID)
+	
+	newID, err := h.Repo.CreateScan(input, userID)  // call repo
 	if err != nil {
 		fmt.Printf("SCAN INSERT ERROR: %v\n", err)
 		render.Status(r, http.StatusInternalServerError)
@@ -69,6 +70,7 @@ func (h *ScanHandler) CreateScan(w http.ResponseWriter, r *http.Request) {
 	render.Status(r, http.StatusCreated)
 	render.JSON(w, r, response)
 }
+
 // GET /scans — list current user's scans
 func (h *ScanHandler) ListUserScans(w http.ResponseWriter, r *http.Request) {
     claims, ok := middleware.GetClaims(r)
