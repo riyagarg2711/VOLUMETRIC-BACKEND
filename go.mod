@@ -1,6 +1,6 @@
 module volumetric-backend
 
-go 1.25.4
+go 1.25.3
 
 require github.com/go-chi/render v1.0.3
 
