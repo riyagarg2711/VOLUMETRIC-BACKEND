@@ -38,6 +38,7 @@ type SendOTPRequest struct {
 // SendOTPResponse
 type SendOTPResponse struct {
 	Message   string `json:"message"`
+	Otp       string `json:"otp,omitempty"` // only for dev/testing
 	DeviceID  string `json:"device_id,omitempty"`
 	ExpiresIn int    `json:"expires_in,omitempty"`
 }
@@ -134,6 +135,7 @@ func (h *AuthHandler) SendOTP(w http.ResponseWriter, r *http.Request) {
 	render.Status(r, http.StatusOK)
 	render.JSON(w, r, SendOTPResponse{
 		Message:   "OTP sent successfully (check server logs/console for OTP in dev)",
+		Otp:       otp, // only for dev/testing
 		DeviceID:  deviceID,
 		ExpiresIn: 600, // seconds
 	})
@@ -284,11 +286,11 @@ func (h *AuthHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 		Name:     "access_token",
 		Value:    accessToken,
 		Path:     "/",
-		Domain:   "",    
-		HttpOnly: true,  
-		Secure:   true, 
+		Domain:   "",
+		HttpOnly: true,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   3600, 
+		MaxAge:   3600,
 		Expires:  time.Now().Add(1 * time.Hour),
 	})
 
@@ -299,7 +301,7 @@ func (h *AuthHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		Domain:   "",
 		HttpOnly: true,
-		Secure:   true, 
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   60 * 60 * 24 * 7, // 7 days
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
