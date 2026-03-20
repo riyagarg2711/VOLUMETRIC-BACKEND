@@ -28,12 +28,17 @@ func Setup(a *app.App) *chi.Mux {
 		r.Use(a.AuthMiddleware)
 
 		r.Post("/auth/logout", a.AuthHandler.Logout)
-		r.Post("/scans", a.ScanHandler.CreateScan)
+		// r.Post("/scans", a.ScanHandler.CreateScan)
 		r.Get("/scans", a.ScanHandler.ListUserScans)
 		r.Post("/scans/coordinates/bulk", a.CoordHandler.GetCoordinatesBulk)
-		r.Post("/scans/{id}/coordinates", a.CoordHandler.UploadCoordinates)
+	//	r.Post("/scans/{id}/coordinates", a.CoordHandler.UploadCoordinates)
 		r.Get("/scans/{id}/coordinates", a.CoordHandler.GetCoordinates)
 		r.Post("/trucks/{vehicle_id}/volume-diff", a.VolumeHandler.CalculateDiff)
+		r.Post("/scans/upload", a.CoordHandler.UploadFullScan)
+		r.Get("/entries", a.CoordHandler.ListEntries)
+		r.Get("/entries/{id}", a.CoordHandler.GetEntryByID)
+
+		
 	})
 
 	return r

@@ -1,0 +1,7 @@
+ALTER TABLE entries RENAME COLUMN volume_m3 TO volume;
+
+ALTER TABLE entries 
+ALTER COLUMN vehicle_id TYPE TEXT;
+
+ALTER TABLE entries 
+ALTER COLUMN status TYPE INTEGER;

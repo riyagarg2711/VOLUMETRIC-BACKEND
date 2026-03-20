@@ -61,3 +61,54 @@ func (r *EntryRepo) UpdateEntry(entry *model.Entry) error {
 	`, entry.EmptyScanID, entry.FilledScanID, entry.VolumeM3, entry.Status, entry.ID)
 	return err
 }
+
+func (r *EntryRepo) ListEntries() ([]model.Entry, error) {
+    rows, err := r.db.Query(`
+        SELECT id, entry_uuid, vehicle_id, empty_scan_id, filled_scan_id, volume_m3, status, created_at, updated_at
+        FROM entries
+        ORDER BY created_at DESC
+        LIMIT 100
+    `)
+    if err != nil {
+        return nil, fmt.Errorf("query entries failed: %w", err)
+    }
+    defer rows.Close()
+
+    var entries []model.Entry
+    for rows.Next() {
+        var e model.Entry
+        err := rows.Scan(
+            &e.ID, &e.EntryUUID, &e.VehicleID,
+            &e.EmptyScanID, &e.FilledScanID, &e.VolumeM3,
+            &e.Status, &e.CreatedAt, &e.UpdatedAt,
+        )
+        if err != nil {
+            return nil, fmt.Errorf("scan entry row failed: %w", err)
+        }
+        entries = append(entries, e)
+    }
+
+    return entries, rows.Err()
+}
+
+// GetEntryByID fetches one entry by its integer ID
+func (r *EntryRepo) GetEntryByID(id int64) (*model.Entry, error) {
+    entry := &model.Entry{}
+    err := r.db.QueryRow(`
+        SELECT id, entry_uuid, vehicle_id, empty_scan_id, filled_scan_id, volume_m3, status, created_at, updated_at
+        FROM entries
+        WHERE id = $1
+    `, id).Scan(
+        &entry.ID, &entry.EntryUUID, &entry.VehicleID,
+        &entry.EmptyScanID, &entry.FilledScanID, &entry.VolumeM3,
+        &entry.Status, &entry.CreatedAt, &entry.UpdatedAt,
+    )
+    if err == sql.ErrNoRows {
+        return nil, nil // not found
+    }
+    if err != nil {
+        return nil, fmt.Errorf("get entry by id failed: %w", err)
+    }
+    return entry, nil
+}
+

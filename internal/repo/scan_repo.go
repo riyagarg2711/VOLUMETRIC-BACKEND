@@ -17,6 +17,10 @@ func NewScanRepo(db *sql.DB) *ScanRepo {
 	return &ScanRepo{db: db}
 }
 
+func (r *ScanRepo) GetDB() *sql.DB {
+    return r.db
+}
+
 // CreateScan inserts a new scan and returns its ID
 func (r *ScanRepo) CreateScan(input model.CreateScanRequest, userID uuid.UUID) (int, error) {
 	var newID int
